@@ -33,8 +33,24 @@ try:
             print(f"   - Total Memory: {props.total_memory / 1024**3:.2f} GB")
             print(f"   - Memory Available: {(props.total_memory - torch.cuda.memory_allocated(i)) / 1024**3:.2f} GB")
             
+        # Check for compatibility warnings
+        print("\n4. Checking CUDA Compatibility...")
+        compute_cap = props.major * 10 + props.minor
+        supported_caps = [37, 50, 60, 61, 70, 75, 80, 86, 89, 90]
+        
+        if compute_cap not in supported_caps:
+            print(f"   ⚠ Warning: Your GPU has compute capability {props.major}.{props.minor} (sm_{compute_cap})")
+            print(f"   PyTorch {torch.__version__} may not fully support this GPU.")
+            if compute_cap >= 120:  # RTX 50 series
+                print("   This is a newer GPU. You may need:")
+                print("   - PyTorch 2.6+ or nightly builds")
+                print("   - CUDA 12.4 or newer")
+                print("   Run: pip install torch torchvision torchaudio --pre --index-url https://download.pytorch.org/whl/nightly/cu124")
+        else:
+            print(f"   ✓ GPU compute capability {props.major}.{props.minor} is supported")
+            
         # Test CUDA with a simple operation
-        print("\n4. Testing CUDA with tensor operation...")
+        print("\n5. Testing CUDA with tensor operation...")
         try:
             x = torch.randn(100, 100).cuda()
             y = torch.randn(100, 100).cuda()
@@ -55,7 +71,7 @@ except ImportError:
     print("  Install with: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118")
 
 # Check NVIDIA driver
-print("\n5. Checking NVIDIA Driver...")
+print("\n6. Checking NVIDIA Driver...")
 try:
     result = subprocess.run(['nvidia-smi'], capture_output=True, text=True)
     if result.returncode == 0:
@@ -73,7 +89,7 @@ except Exception as e:
     print(f"   ✗ Error checking NVIDIA driver: {e}")
 
 # Check environment variables
-print("\n6. Relevant Environment Variables:")
+print("\n7. Relevant Environment Variables:")
 import os
 for var in ['CUDA_VISIBLE_DEVICES', 'CUDA_HOME', 'CUDA_PATH', 'PATH']:
     value = os.environ.get(var, 'Not set')

@@ -94,12 +94,8 @@ class BatchProcessor:
         self.shapegen_pipeline = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
             model_path,
             torch_dtype=dtype,
-            device_map="auto" if self.device == 'cuda' else None
+            device=self.device
         )
-        
-        # Only enable CPU offload on CUDA
-        if self.device == 'cuda':
-            self.shapegen_pipeline.enable_model_cpu_offload()
         
         if self.enable_texture:
             print("Loading texture generation model...")
@@ -108,8 +104,6 @@ class BatchProcessor:
                     model_path,
                     torch_dtype=dtype
                 )
-                if self.device == 'cuda':
-                    self.texgen_pipeline.enable_model_cpu_offload()
             except Exception as e:
                 print(f"Warning: Could not load texture generation model: {e}")
                 print("Texture generation will be disabled.")

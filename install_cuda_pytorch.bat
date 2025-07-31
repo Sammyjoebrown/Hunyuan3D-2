@@ -23,8 +23,18 @@ echo Step 1: Uninstalling current PyTorch...
 pip uninstall -y torch torchvision torchaudio
 
 echo.
-echo Step 2: Installing PyTorch with CUDA 11.8 support...
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+echo Step 2: Installing PyTorch with CUDA support...
+echo.
+echo Checking for newer GPUs (RTX 40/50 series)...
+python -c "import subprocess; r=subprocess.run(['nvidia-smi', '--query-gpu=name', '--format=csv,noheader'], capture_output=True, text=True); print('GPU:', r.stdout.strip())" 2>nul
+
+echo.
+echo Installing PyTorch with CUDA 12.4 support for newer GPUs...
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+
+echo.
+echo Note: If you still see CUDA compatibility warnings, you may need PyTorch 2.6+
+echo You can try the nightly build with: pip install torch torchvision torchaudio --pre --index-url https://download.pytorch.org/whl/nightly/cu124
 
 echo.
 echo Step 3: Verifying installation...
