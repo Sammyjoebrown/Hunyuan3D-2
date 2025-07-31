@@ -1,0 +1,10 @@
+# PyTorch with CUDA 11.8 support for RTX 5060 Ti and similar GPUs
+# Install with: pip install -r requirements-cuda.txt
+
+--index-url https://download.pytorch.org/whl/cu118
+torch==2.5.1+cu118
+torchvision==0.20.1+cu118
+torchaudio==2.5.1+cu118
+
+# Install base requirements after PyTorch
+-r requirements.txt

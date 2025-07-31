@@ -11,22 +11,52 @@ A high-performance batch processing application for Hunyuan3D-2, optimized for N
 - **Progress Tracking**: Real-time progress updates during batch processing
 - **Automatic Output Organization**: Timestamped output directories with metadata
 
+## Prerequisites - IMPORTANT!
+
+### Installing PyTorch with CUDA Support
+If you see "PyTorch version: X.X.X+cpu" or "CUDA available: False", you need to install PyTorch with CUDA support:
+
+**Windows (Recommended):**
+```bash
+# Run the automated installer
+install_cuda_pytorch.bat
+```
+
+**Manual Installation:**
+```bash
+# 1. Uninstall CPU-only PyTorch
+pip uninstall torch torchvision torchaudio
+
+# 2. Install PyTorch with CUDA 11.8 support
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# 3. Verify CUDA is available
+python check_cuda.py
+```
+
 ## Quick Start
 
 ### Option 1: Using the Launch Script (Recommended)
+
+**Windows:**
+```bash
+launch_batch_processor.bat
+```
+
+**Linux/Mac:**
 ```bash
 ./launch_batch_processor.sh
 ```
 
 ### Option 2: Manual Launch
 ```bash
-# Ensure dependencies are installed
-pip install -r requirements.txt
+# Ensure dependencies are installed (use requirements-cuda.txt for GPU support)
+pip install -r requirements-cuda.txt
 pip install -e .
 
 # Build CUDA extensions
-cd hy3dgen/texgen/custom_rasterizer && python3 setup.py install && cd ../../..
-cd hy3dgen/texgen/differentiable_renderer && python3 setup.py install && cd ../../..
+cd hy3dgen/texgen/custom_rasterizer && python setup.py install && cd ../../..
+cd hy3dgen/texgen/differentiable_renderer && python setup.py install && cd ../../..
 
 # Run the app
 python batch_processor_app.py
