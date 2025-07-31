@@ -116,6 +116,28 @@ batch_outputs/
 - Verify PyTorch CUDA: `python -c "import torch; print(torch.cuda.is_available())"`
 - Check CUDA version compatibility with PyTorch
 
+### CUDA Kernel Errors (RTX 5060 Ti)
+If you see errors like `FATAL: kernel fmha_cutlassF_f16_aligned_64x64_rf_sm80 is for sm80-sm100`:
+
+**Option 1 - Use Safe Mode (Recommended):**
+```bash
+launch_batch_processor_no_xformers.bat
+# Or directly:
+python batch_processor_app_safe.py
+```
+
+**Option 2 - Fix CUDA Kernels:**
+```bash
+fix_cuda_kernels.bat
+```
+
+**Option 3 - Manual Fix:**
+```bash
+# Disable xformers
+set DISABLE_XFORMERS=1
+python batch_processor_app.py
+```
+
 ### Slow Processing
 - First run will be slower due to model compilation
 - Ensure you're using the launch script for optimal settings

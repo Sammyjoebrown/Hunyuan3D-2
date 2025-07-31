@@ -28,6 +28,12 @@ import threading
 from queue import Queue
 import uuid
 
+# Disable xformers if requested or if there are compatibility issues
+DISABLE_XFORMERS = os.environ.get('DISABLE_XFORMERS', '0') == '1'
+if DISABLE_XFORMERS:
+    os.environ['XFORMERS_DISABLE'] = '1'
+    print("XFORMERS disabled by environment variable")
+
 # Print Python and PyTorch info for debugging
 print("=" * 60)
 print("System Information:")
@@ -91,11 +97,23 @@ class BatchProcessor:
         print("Loading shape generation model...")
         dtype = torch.float16 if self.device == 'cuda' else torch.float32
         
-        self.shapegen_pipeline = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
-            model_path,
-            torch_dtype=dtype,
-            device=self.device
-        )
+        try:
+            self.shapegen_pipeline = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
+                model_path,
+                torch_dtype=dtype,
+                device=self.device
+            )
+        except RuntimeError as e:
+            if "FATAL: kernel" in str(e) or "sm_" in str(e):
+                print("\n" + "="*60)
+                print("CUDA KERNEL ERROR DETECTED!")
+                print("This is likely due to architecture mismatch with your RTX 5060 Ti")
+                print("Please try:")
+                print("1. Run: fix_cuda_kernels.bat")
+                print("2. Or disable xformers: set DISABLE_XFORMERS=1")
+                print("3. Then restart the application")
+                print("="*60 + "\n")
+            raise e
         
         if self.enable_texture:
             print("Loading texture generation model...")
