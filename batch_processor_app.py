@@ -34,6 +34,15 @@ if DISABLE_XFORMERS:
     os.environ['XFORMERS_DISABLE'] = '1'
     print("XFORMERS disabled by environment variable")
 
+# Check if we need to disable Flash Attention for newer GPUs
+DISABLE_FLASH_ATTN = os.environ.get('DISABLE_FLASH_ATTN', '0') == '1'
+if DISABLE_FLASH_ATTN or DISABLE_XFORMERS:
+    try:
+        import disable_flash_attention
+        print("Flash Attention patch applied")
+    except Exception as e:
+        print(f"Warning: Could not apply Flash Attention patch: {e}")
+
 # Print Python and PyTorch info for debugging
 print("=" * 60)
 print("System Information:")

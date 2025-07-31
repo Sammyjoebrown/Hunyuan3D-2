@@ -5,9 +5,10 @@ echo For RTX 5060 Ti and other newer GPUs with kernel issues
 echo ============================================================
 echo.
 
-REM Disable xformers to avoid kernel architecture mismatches
+REM Disable xformers and flash attention to avoid kernel architecture mismatches
 set DISABLE_XFORMERS=1
 set XFORMERS_DISABLE=1
+set DISABLE_FLASH_ATTN=1
 
 REM Also set some other compatibility options
 set CUDA_VISIBLE_DEVICES=0
