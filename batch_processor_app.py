@@ -16,6 +16,8 @@ import os
 import gc
 import json
 import time
+import sys
+import warnings
 import torch
 import gradio as gr
 from PIL import Image
@@ -26,24 +28,51 @@ import threading
 from queue import Queue
 import uuid
 
+# Print Python and PyTorch info for debugging
+print("=" * 60)
+print("System Information:")
+print(f"Python version: {sys.version}")
+print(f"PyTorch version: {torch.__version__}")
+
+# Check CUDA availability with detailed info
+cuda_available = torch.cuda.is_available()
+print(f"CUDA available: {cuda_available}")
+
+if cuda_available:
+    print(f"CUDA version: {torch.version.cuda}")
+    print(f"Number of GPUs: {torch.cuda.device_count()}")
+    for i in range(torch.cuda.device_count()):
+        print(f"GPU {i}: {torch.cuda.get_device_name(i)}")
+        print(f"  Memory: {torch.cuda.get_device_properties(i).total_memory / 1024**3:.2f} GB")
+else:
+    print("CUDA not detected. Checking common issues...")
+    print("1. Make sure you have PyTorch with CUDA support installed")
+    print("2. Check if NVIDIA drivers are installed: run 'nvidia-smi' in terminal")
+    print("3. You may need to install: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118")
+print("=" * 60)
+
 from hy3dgen.shapegen import Hunyuan3DDiTFlowMatchingPipeline
 from hy3dgen.texgen import Hunyuan3DPaintPipeline
 from hy3dgen.text2image import HunyuanDiTPipeline
 from hy3dgen.rembg import BackgroundRemover
 
 # Global variables
-DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+DEVICE = 'cuda' if cuda_available else 'cpu'
 MAX_BATCH_SIZE = 5  # Optimal for 16GB VRAM
 OUTPUT_DIR = "batch_outputs"
+ENABLE_TEXTURE = True  # Can be disabled if texture gen is not available
 
-# Ensure CUDA is available
-if not torch.cuda.is_available():
-    raise RuntimeError("CUDA is not available. This app requires an NVIDIA GPU with CUDA support.")
-
-# Print GPU info
-print(f"Using device: {DEVICE}")
-print(f"GPU: {torch.cuda.get_device_name(0)}")
-print(f"Total VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
+# Warning instead of hard error
+if not cuda_available:
+    warnings.warn(
+        "CUDA is not available! The app will run much slower on CPU. "
+        "For optimal performance, please ensure CUDA is properly installed.",
+        RuntimeWarning
+    )
+    # Allow CPU mode for testing/debugging
+    print("\nRunning in CPU mode (will be very slow)...")
+else:
+    print(f"\nUsing GPU: {torch.cuda.get_device_name(0)}")
 
 class BatchProcessor:
     def __init__(self, model_path='tencent/Hunyuan3D-2', enable_texture=True):
@@ -51,28 +80,41 @@ class BatchProcessor:
         self.device = DEVICE
         self.enable_texture = enable_texture
         
-        # Enable CUDA optimizations
-        torch.backends.cudnn.enabled = True
-        torch.backends.cudnn.benchmark = True
-        torch.backends.cuda.matmul.allow_tf32 = True
-        torch.backends.cudnn.allow_tf32 = True
+        # Enable CUDA optimizations if available
+        if self.device == 'cuda':
+            torch.backends.cudnn.enabled = True
+            torch.backends.cudnn.benchmark = True
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
         
         # Initialize models with memory optimizations
         print("Loading shape generation model...")
+        dtype = torch.float16 if self.device == 'cuda' else torch.float32
+        
         self.shapegen_pipeline = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
             model_path,
-            torch_dtype=torch.float16,  # Use fp16 for memory efficiency
-            device_map="auto"
+            torch_dtype=dtype,
+            device_map="auto" if self.device == 'cuda' else None
         )
-        self.shapegen_pipeline.enable_model_cpu_offload()  # Offload to CPU when not in use
+        
+        # Only enable CPU offload on CUDA
+        if self.device == 'cuda':
+            self.shapegen_pipeline.enable_model_cpu_offload()
         
         if self.enable_texture:
             print("Loading texture generation model...")
-            self.texgen_pipeline = Hunyuan3DPaintPipeline.from_pretrained(
-                model_path,
-                torch_dtype=torch.float16
-            )
-            self.texgen_pipeline.enable_model_cpu_offload()
+            try:
+                self.texgen_pipeline = Hunyuan3DPaintPipeline.from_pretrained(
+                    model_path,
+                    torch_dtype=dtype
+                )
+                if self.device == 'cuda':
+                    self.texgen_pipeline.enable_model_cpu_offload()
+            except Exception as e:
+                print(f"Warning: Could not load texture generation model: {e}")
+                print("Texture generation will be disabled.")
+                self.enable_texture = False
+                self.texgen_pipeline = None
         
         # Initialize auxiliary models
         print("Loading auxiliary models...")
@@ -95,15 +137,19 @@ class BatchProcessor:
     def clear_gpu_memory(self):
         """Clear GPU memory between batches"""
         gc.collect()
-        torch.cuda.empty_cache()
-        torch.cuda.synchronize()
+        if self.device == 'cuda':
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
         
     def text_to_image(self, prompt: str) -> Image.Image:
         """Convert text prompt to image"""
         if self.t2i_pipeline is None:
             raise ValueError("Text-to-image model not loaded")
             
-        with torch.cuda.amp.autocast():  # Mixed precision for efficiency
+        if self.device == 'cuda':
+            with torch.cuda.amp.autocast():  # Mixed precision for efficiency
+                image = self.t2i_pipeline(prompt)
+        else:
             image = self.t2i_pipeline(prompt)
         
         return image
@@ -136,13 +182,19 @@ class BatchProcessor:
             
             # Generate 3D shape
             print(f"Generating 3D shape for {item_id}...")
-            with torch.cuda.amp.autocast():
+            if self.device == 'cuda':
+                with torch.cuda.amp.autocast():
+                    mesh = self.shapegen_pipeline(image=image)[0]
+            else:
                 mesh = self.shapegen_pipeline(image=image)[0]
             
             # Generate texture if enabled
-            if generate_texture and self.enable_texture:
+            if generate_texture and self.enable_texture and self.texgen_pipeline is not None:
                 print(f"Generating texture for {item_id}...")
-                with torch.cuda.amp.autocast():
+                if self.device == 'cuda':
+                    with torch.cuda.amp.autocast():
+                        mesh = self.texgen_pipeline(mesh, image=image)
+                else:
                     mesh = self.texgen_pipeline(mesh, image=image)
             
             # Save outputs
