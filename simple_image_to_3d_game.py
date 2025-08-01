@@ -120,6 +120,10 @@ def image_to_3d_game_asset(image_path: str, output_path: str = None):
         print("   ✓ Shape model loaded")
     except Exception as e:
         print(f"❌ Failed to load shape model: {e}")
+        if "IncompleteRead" in str(e) or "Connection broken" in str(e):
+            print("\n📥 The model download was interrupted.")
+            print("   Please run the following command to download models first:")
+            print("   python download_models.py")
         sys.exit(1)
     
     # Load texture generation model (1.3B parameters)
@@ -132,6 +136,11 @@ def image_to_3d_game_asset(image_path: str, output_path: str = None):
         print("   ✓ Texture model loaded")
     except Exception as e:
         print(f"❌ Failed to load texture model: {e}")
+        if "IncompleteRead" in str(e) or "Connection broken" in str(e):
+            print("\n📥 The model download was interrupted. This is a large file (3.6GB).")
+            print("   Please run the following command to download models first:")
+            print("   python download_models.py")
+            print("\n   This will download with resume capability to handle interruptions.")
         sys.exit(1)
     
     # Generate 3D shape
