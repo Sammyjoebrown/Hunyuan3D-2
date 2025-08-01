@@ -102,6 +102,13 @@ def image_to_3d_game_asset(image_path: str, output_path: str = None):
     if device == 'cpu':
         print("   ⚠️  Warning: Running on CPU will be slow. GPU recommended.")
     
+    # Note about RTX 5060 Ti CUDA warning
+    if device == 'cuda' and torch.cuda.is_available():
+        gpu_name = torch.cuda.get_device_name(0) if torch.cuda.device_count() > 0 else "Unknown"
+        if "5060" in gpu_name or "5070" in gpu_name or "5080" in gpu_name or "5090" in gpu_name:
+            print(f"   ℹ️  Note: You may see CUDA capability warnings for {gpu_name}.")
+            print("      This is normal and the model will still work correctly.")
+    
     # Load shape generation model (1.1B parameters)
     print("\n   📐 Loading shape generation model (1.1B parameters)...")
     try:
@@ -120,8 +127,7 @@ def image_to_3d_game_asset(image_path: str, output_path: str = None):
     try:
         pipeline_texgen = Hunyuan3DPaintPipeline.from_pretrained(
             model_path,
-            subfolder='hunyuan3d-paint-v2-0',  # Full size model
-            torch_dtype=dtype
+            subfolder='hunyuan3d-paint-v2-0'  # Full size model
         )
         print("   ✓ Texture model loaded")
     except Exception as e:
