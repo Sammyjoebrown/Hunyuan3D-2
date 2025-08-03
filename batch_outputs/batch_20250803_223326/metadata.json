@@ -1,0 +1,17 @@
+{
+  "processing_date": "2025-08-03T22:33:26.742990",
+  "total_items": 1,
+  "completed_items": 1,
+  "results": [
+    {
+      "id": "img_000_alice",
+      "status": "completed",
+      "input_type": "image",
+      "start_time": 1754223604.6336818,
+      "output_path": "batch_outputs\\batch_20250803_223326\\img_000_alice.glb",
+      "input_image_path": "batch_outputs\\batch_20250803_223326\\img_000_alice_input.png",
+      "end_time": 1754224406.5109901,
+      "duration": 801.8773083686829
+    }
+  ]
+}
